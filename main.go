@@ -37,8 +37,8 @@ func annotatePodMutator(ctx context.Context, obj metav1.Object) (bool, error) {
 	// specially when operators create the pods. Hence access
 	// the Namespace in the actual request (vs the object)
 	// https://godoc.org/k8s.io/api/admission/v1beta1#AdmissionRequest
-	if whPolicy.nsBlacklist[request.Namespace] {
-		fmt.Println("blacklisted namespace: ", request.Namespace)
+	if !whPolicy.nsWhitelist[request.Namespace] {
+		fmt.Println("not a whitelisted namespace: ", request.Namespace)
 		return false, nil
 	}
 
@@ -75,11 +75,11 @@ func annotatePodMutator(ctx context.Context, obj metav1.Object) (bool, error) {
 type config struct {
 	certFile    string
 	keyFile     string
-	nsBlacklist string
+	nsWhitelist string
 }
 
 type policy struct {
-	nsBlacklist map[string]bool
+	nsWhitelist map[string]bool
 }
 
 var whPolicy *policy
@@ -90,7 +90,7 @@ func initFlags() *config {
 	fl := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fl.StringVar(&cfg.certFile, "tls-cert-file", "", "TLS certificate file")
 	fl.StringVar(&cfg.keyFile, "tls-key-file", "", "TLS key file")
-	fl.StringVar(&cfg.nsBlacklist, "exclude-namespaces", "", "Comma separated namespace blacklist")
+	fl.StringVar(&cfg.nsWhitelist, "include-namespaces", "", "Comma separated namespace whitelist, default ns is used if not specified")
 
 	fl.Parse(os.Args[1:])
 	return cfg
@@ -102,11 +102,13 @@ func main() {
 	cfg := initFlags()
 
 	whPolicy = &policy{}
-	whPolicy.nsBlacklist = make(map[string]bool)
-	if cfg.nsBlacklist != "" {
-		for _, s := range strings.Split(cfg.nsBlacklist, ",") {
-			whPolicy.nsBlacklist[s] = true
+	whPolicy.nsWhitelist = make(map[string]bool)
+	if cfg.nsWhitelist != "" {
+		for _, s := range strings.Split(cfg.nsWhitelist, ",") {
+			whPolicy.nsWhitelist[s] = true
 		}
+	} else { // set only default ns as whitelisted by default
+		whPolicy.nsWhitelist["default"] = true
 	}
 
 	// Create our mutator
