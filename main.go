@@ -42,6 +42,11 @@ func annotatePodMutator(ctx context.Context, obj metav1.Object) (bool, error) {
 		return false, nil
 	}
 
+	if len(whPolicy.nsAllowedlist) > 0 && !whPolicy.nsAllowedlist[request.Namespace] {
+		fmt.Println("This namespace is not marked as allowed: ", request.Namespace)
+		return false, nil
+	}
+
 	// We cannot support --net=host in Kata
 	// https://github.com/kata-containers/documentation/blob/master/Limitations.md#docker---nethost
 	if pod.Spec.HostNetwork {
@@ -76,10 +81,12 @@ type config struct {
 	certFile    string
 	keyFile     string
 	nsBlacklist string
+	nsAllowedlist string
 }
 
 type policy struct {
 	nsBlacklist map[string]bool
+	nsAllowedlist map[string]bool
 }
 
 var whPolicy *policy
@@ -91,6 +98,7 @@ func initFlags() *config {
 	fl.StringVar(&cfg.certFile, "tls-cert-file", "", "TLS certificate file")
 	fl.StringVar(&cfg.keyFile, "tls-key-file", "", "TLS key file")
 	fl.StringVar(&cfg.nsBlacklist, "exclude-namespaces", "", "Comma separated namespace blacklist")
+	fl.StringVar(&cfg.nsAllowedlist, "include-only-namespaces", "", "Comma separated set of namespace to apply, exluding blacklisted")
 
 	fl.Parse(os.Args[1:])
 	return cfg
@@ -106,6 +114,13 @@ func main() {
 	if cfg.nsBlacklist != "" {
 		for _, s := range strings.Split(cfg.nsBlacklist, ",") {
 			whPolicy.nsBlacklist[s] = true
+		}
+	}
+
+	whPolicy.nsAllowedlist = make(map[string]bool)
+	if cfg.nsAllowedlist != "" {
+		for _, s := range strings.Split(cfg.nsAllowedlist, ",") {
+			whPolicy.nsAllowedlist[s] = true
 		}
 	}
 
