@@ -37,3 +37,9 @@ those with
 * `hostNetwork: true` 
 * namespace: `rook-ceph` and `rook-ceph-system`
 
+### Advanced filtering
+
+Add the -regex-namespace parameter in deploy/webhook.yaml followed by a
+regular expression, if this is set and pattern is valid kata will be
+applied only on matching namespaces (the above excluded).
+In case invalid regex pattern is set webhook pod will fail to start.

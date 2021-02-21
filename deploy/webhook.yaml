@@ -20,12 +20,13 @@ spec:
     spec:
       containers:
         - name: pod-annotate-webhook
-          image: quay.io/fidencio/kata-webhook-example:latest
+          image: quay.io/snir/kata-webhook-example:latest
           imagePullPolicy: Always
           args:
             - -tls-cert-file=/etc/webhook/certs/cert.pem
             - -tls-key-file=/etc/webhook/certs/key.pem
             - -exclude-namespaces=rook-ceph-system,rook-ceph
+#            - -regex-namespaces=^e2e-.* # for example, this regex string will apply only on the e2e testing suite namespaces
           volumeMounts:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
