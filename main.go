@@ -43,7 +43,11 @@ func annotatePodMutator(ctx context.Context, obj metav1.Object) (bool, error) {
 		return false, nil
 	}
 
-	if validRegex != nil {
+	if namespaced_mode {
+		if request.Namespace != os.Getenv("MY_POD_NAMESPACE") {
+			return false, nil
+		}
+	} else if validRegex != nil {
 		if !validRegex.MatchString(request.Namespace) {
 			fmt.Println("namespace doesn't match regex expression", request.Namespace)
 			return false, nil
@@ -85,6 +89,7 @@ type config struct {
 	keyFile     string
 	nsBlacklist string
 	regexStr    string
+	namespaced  bool
 }
 
 type policy struct {
@@ -93,6 +98,7 @@ type policy struct {
 
 var whPolicy *policy
 var validRegex *regexp.Regexp
+var namespaced_mode bool
 
 func initFlags() *config {
 	cfg := &config{}
@@ -102,6 +108,7 @@ func initFlags() *config {
 	fl.StringVar(&cfg.keyFile, "tls-key-file", "", "TLS key file")
 	fl.StringVar(&cfg.nsBlacklist, "exclude-namespaces", "", "Comma separated namespace blacklist")
 	fl.StringVar(&cfg.regexStr, "regex-namespaces", "", "regex string, will mutate only matching namespaces, blacklisted namespaces will be ingnored")
+	fl.BoolVar(&cfg.namespaced, "mutate-where-installed", false, "mutating only in the namesapce where webhook is installed, if not blacklisted, mutual exlusive with regex")
 
 	fl.Parse(os.Args[1:])
 	return cfg
@@ -120,7 +127,13 @@ func main() {
 		}
 	}
 
-	if cfg.regexStr != "" {
+	if cfg.regexStr != "" && cfg.namespaced {
+		fmt.Fprintf(os.Stderr, "regex-namespaces and namespaced-mode are mutual exlusive")
+		os.Exit(1)
+	}
+	namespaced_mode = cfg.namespaced
+
+	if cfg.regexStr != "" && !cfg.namespaced {
 		// panic on invalid expression
 		validRegex = regexp.MustCompile(cfg.regexStr)
 	}

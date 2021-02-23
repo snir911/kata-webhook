@@ -27,10 +27,16 @@ spec:
             - -tls-key-file=/etc/webhook/certs/key.pem
             - -exclude-namespaces=rook-ceph-system,rook-ceph
 #            - -regex-namespaces=^e2e-.* # for example, this regex string will apply only on the e2e testing suite namespaces
+#            - -mutate-where-installed # if set pods will be mutated only on the namespace where webhook is deployed, mutual exlusive with regex-namespaces
           volumeMounts:
             - name: webhook-certs
               mountPath: /etc/webhook/certs
               readOnly: true
+          env:
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
       volumes:
         - name: webhook-certs
           secret:
